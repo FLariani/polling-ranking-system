@@ -1,0 +1,8 @@
+Pizza
+Burgers
+Tacos
+Pasta
+Salad
+Sushi
+Chicken Wings
+Sandwiches

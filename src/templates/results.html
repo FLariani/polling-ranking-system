@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Results</title>
+  <style>
+    body { font-family: Georgia, serif; max-width: 960px; margin: 2rem auto; padding: 0 1rem; }
+    table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+    th, td { border: 1px solid #bbb; padding: 0.5rem; text-align: left; }
+    .filters { border: 1px solid #bbb; padding: 1rem; border-radius: 8px; }
+    input { padding: 0.4rem; width: 220px; }
+    button { padding: 0.45rem 0.8rem; }
+  </style>
+</head>
+<body>
+  <h1>Session Results</h1>
+
+  <div class="filters">
+    <p>Timestamp format: {{ fmt }}</p>
+    <form method="get" action="/results">
+      <label>Start</label>
+      <input name="start" value="{{ start }}" placeholder="YYYY-MM-DD HH:MM:SS" />
+      <label>End</label>
+      <input name="end" value="{{ end }}" placeholder="YYYY-MM-DD HH:MM:SS" />
+      <button type="submit">Apply</button>
+    </form>
+  </div>
+
+  <table>
+    <thead>
+      <tr><th>Item</th><th>Average Rank</th><th>Vote Count</th></tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+      <tr>
+        <td>{{ row.item_name }}</td>
+        <td>{% if row.vote_count %}{{ "%.4f"|format(row.average_rank) }}{% else %}-{% endif %}</td>
+        <td>{{ row.vote_count }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <p><a href="/">Back to Voting</a> | <a href="/admin">Admin Panel</a></p>
+</body>
+</html>

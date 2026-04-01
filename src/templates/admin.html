@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Admin</title>
+  <style>
+    body { font-family: Georgia, serif; max-width: 860px; margin: 2rem auto; padding: 0 1rem; }
+    .card { border: 1px solid #bbb; padding: 1rem; border-radius: 8px; }
+    form { display: inline-block; margin-right: 0.5rem; }
+    button { padding: 0.5rem 0.8rem; }
+  </style>
+</head>
+<body>
+  <h1>Admin Panel</h1>
+  <div class="card">
+    <p>Session: {{ session.session_id if session else 'N/A' }}</p>
+    <p>Status: <strong>{{ status }}</strong></p>
+
+    <form method="post" action="/admin/open"><button type="submit">Open Session</button></form>
+    <form method="post" action="/admin/close"><button type="submit">Close Session</button></form>
+
+    <p><a href="/results">Results</a> | <a href="/">Back to Voting</a></p>
+    <form method="post" action="/export_results"><button type="submit">Export Results</button></form>
+  </div>
+</body>
+</html>

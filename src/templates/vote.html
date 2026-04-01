@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bias-Free Voting</title>
+  <style>
+    body { font-family: Georgia, serif; max-width: 860px; margin: 2rem auto; padding: 0 1rem; }
+    h1 { margin-bottom: 0.2rem; }
+    .card { border: 1px solid #bbb; padding: 1rem; border-radius: 8px; }
+    .row { margin: 0.7rem 0; }
+    label { font-weight: 600; }
+    select, input { width: 100%; padding: 0.5rem; }
+    button { margin-top: 1rem; padding: 0.6rem 1rem; }
+  </style>
+</head>
+<body>
+  <h1>Bias-Free Polling and Ranking</h1>
+  <p>Each rank selects one item. Rank 1 is best.</p>
+
+  <div class="card">
+    <form method="post" action="/submit_vote">
+      <div class="row">
+        <label for="voter_name">Voter Name (optional)</label>
+        <input id="voter_name" name="voter_name" value="{{ voter_name }}" maxlength="50" />
+      </div>
+
+      {% for rank in range(1, (items|length) + 1) %}
+      <div class="row">
+        <label for="rank_{{rank}}">Rank {{rank}}</label>
+        <select id="rank_{{rank}}" name="rank_{{rank}}" required>
+          <option value="">Select item</option>
+          {% for item in items %}
+          <option value="{{ item.id }}">{{ item.item_name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      {% endfor %}
+
+      <button type="submit">Submit Vote</button>
+    </form>
+  </div>
+
+  <p><a href="/admin">Admin Panel</a> | <a href="/results">View Results</a></p>
+</body>
+</html>
