@@ -132,7 +132,11 @@ def export_results():
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Bias-Free Polling and Ranking")
-    parser.add_argument("--config", required=True, help="Path to item configuration file")
+    parser.add_argument(
+        "--config",
+        default="config/items.txt",
+        help="Path to item configuration file (default: config/items.txt)",
+    )
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", default=5000, type=int)
     return parser.parse_args()
