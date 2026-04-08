@@ -125,7 +125,7 @@ def export_results():
     ]
 
     out_name = f"results_{current_session.session_id}.txt"
-    out_path = Path("data") / out_name
+    out_path = storage.base_dir / out_name
     storage.export_results(out_path, payload)
     return render_template("message.html", title="Export Complete", message=f"Results exported to {out_path}")
 
@@ -142,15 +142,19 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def bootstrap() -> argparse.Namespace:
+def init_app(config_path: Path = Path("config/items.txt"), data_dir: Path = Path("data")) -> None:
     global storage, items, current_session
 
-    args = parse_args()
-    storage = DataStorage(Path("data"))
-    items = storage.load_items_from_config(Path(args.config))
+    storage = DataStorage(data_dir)
+    items = storage.load_items_from_config(config_path)
 
     seed_rng()
     current_session = storage.create_session()
+
+
+def bootstrap() -> argparse.Namespace:
+    args = parse_args()
+    init_app(Path(args.config), Path("data"))
     return args
 
 
