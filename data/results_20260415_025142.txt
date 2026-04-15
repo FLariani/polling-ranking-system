@@ -1,0 +1,9 @@
+item_name,average_rank,vote_count
+Sandwiches,1.0000,1
+Pasta,2.0000,1
+Salad,3.0000,1
+Burgers,4.0000,1
+Pizza,5.0000,1
+Chicken Wings,6.0000,1
+Sushi,7.0000,1
+Tacos,8.0000,1

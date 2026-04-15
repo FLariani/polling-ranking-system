@@ -13,15 +13,13 @@
 
 <div class="card">
   <form method="post" action="/submit_vote">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
 
     <!-- Name field — hidden when the admin enabled anonymous mode -->
     {% if not anonymous %}
     <div class="field">
-      <label for="voter_name">
-        Your Name
-        <span style="font-weight:400; color:var(--muted)">(optional)</span>
-      </label>
-      <input id="voter_name" name="voter_name" maxlength="50" placeholder="Anonymous" />
+      <label for="voter_name">Your Name</label>
+      <input id="voter_name" name="voter_name" maxlength="50" placeholder="Enter your name" required />
     </div>
     <hr class="divider">
     {% endif %}

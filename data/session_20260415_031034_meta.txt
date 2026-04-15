@@ -1,0 +1,5 @@
+session_id=20260415_031034
+created_at=2026-04-15 03:10:34
+status=open
+session_type=voting
+anonymous=false

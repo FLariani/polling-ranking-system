@@ -49,21 +49,24 @@ class TestFullVoteFlow(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn(b"Vote recorded for Alice", response.data)
 
-        # ── Step 3: revote updates the existing record ────────────────────
-        # Submitting a reversed ranking should replace the first vote, not add
-        # a duplicate.  The "updated" message confirms the revote path ran.
+        # ── Step 3: duplicate vote is rejected ───────────────────────────
+        # Submitting again with the same name (case-insensitive) should be
+        # blocked — each person may only vote once per session.
         reversed_ids = [str(item.id) for item in reversed(items)]
-        revote_data = {"voter_name": "Alice", **{f"rank_{i + 1}": reversed_ids[i] for i in range(len(items))}}
+        revote_data = {"voter_name": "alice", **{f"rank_{i + 1}": reversed_ids[i] for i in range(len(items))}}
         response = client.post("/submit_vote", data=revote_data)
         self.assertEqual(response.status_code, 200)
-        self.assertIn(b"Vote updated for Alice", response.data)
+        self.assertIn(b"already voted", response.data)
 
         # ── Step 4: closing the session blocks further votes ──────────────
         response = client.post("/admin/close", follow_redirects=True)
         self.assertEqual(response.status_code, 200)
         self.assertTrue(b"closed" in response.data or b"Session" in response.data)
 
-        response = client.post("/submit_vote", data=form_data)
+        # Use a fresh name that hasn't voted yet so the closed-session check
+        # is reached rather than the duplicate-vote check.
+        charlie_data = rank_form_data("Charlie", items)
+        response = client.post("/submit_vote", data=charlie_data)
         self.assertEqual(response.status_code, 200)
         self.assertIn(b"Session is closed", response.data)
 
@@ -72,12 +75,10 @@ class TestFullVoteFlow(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTrue(b"open" in response.data or b"Session" in response.data)
 
-        response = client.post("/submit_vote", data=form_data)
+        # Charlie hasn't voted yet, so their first vote should be accepted now the session is open.
+        response = client.post("/submit_vote", data=charlie_data)
         self.assertEqual(response.status_code, 200)
-        self.assertTrue(
-            b"Vote recorded for Alice" in response.data
-            or b"Vote updated for Alice" in response.data
-        )
+        self.assertIn(b"Vote recorded for Charlie", response.data)
 
         # ── Step 6: results page lists every item ─────────────────────────
         # We don't check exact rankings here — that's covered by the unit tests.

@@ -1,0 +1,5 @@
+session_id=20260415_030552
+created_at=2026-04-15 03:05:52
+status=open
+session_type=ranking
+anonymous=false

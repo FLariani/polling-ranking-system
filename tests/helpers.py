@@ -27,6 +27,7 @@ def create_test_client(tmp_path: Path) -> Tuple[FlaskClient, Sequence[Item], mai
 
     data_dir = tmp_path / "data"
     main.init_app(config_path, data_dir)
+    main.app.config["TESTING"] = True  # disables CSRF validation in tests
 
     client = main.app.test_client()
     # Create a default non-anonymous ranking session so tests can vote immediately.

@@ -6,6 +6,7 @@
 <p class="subtitle">Add your voting options, choose a session type, and launch.</p>
 
 <form method="post" action="/admin/create">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
 
   <!-- ── Voting options ── -->
   <p class="section-label">Voting Options <span id="item-count-label">({{ existing_items|length }} items)</span></p>

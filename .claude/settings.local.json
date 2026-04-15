@@ -5,7 +5,14 @@
       "Bash(powershell -Command \"netstat -ano | findstr :5000\")",
       "Bash(powershell -Command \"netstat -ano | findstr '127.0.0.1:5000'\")",
       "Bash(.venv/Scripts/python.exe src/main.py)",
-      "Bash(powershell -Command \"Invoke-WebRequest -Uri 'http://127.0.0.1:5000/' -UseBasicParsing | Select-Object -ExpandProperty Content\")"
+      "Bash(powershell -Command \"Invoke-WebRequest -Uri 'http://127.0.0.1:5000/' -UseBasicParsing | Select-Object -ExpandProperty Content\")",
+      "Bash(powershell -Command \"netstat -ano | findstr '127.0.0.1:5000.*LISTEN'\")",
+      "Bash(powershell -Command \"Stop-Process -Id 22348, 2464 -Force -ErrorAction SilentlyContinue\")",
+      "Bash(powershell -Command \"Stop-Process -Id 28584 -Force\")",
+      "Bash(.venv/Scripts/python.exe -m pytest tests/ -v)",
+      "Bash(powershell -Command \"Stop-Process -Id 29432 -Force -ErrorAction SilentlyContinue\")",
+      "Bash(powershell -Command \"Stop-Process -Id 26644 -Force -ErrorAction SilentlyContinue\")",
+      "Bash(python -m pytest tests/ -v)"
     ]
   }
 }

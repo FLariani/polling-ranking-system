@@ -43,12 +43,15 @@
 
   <div class="btn-row">
     <form method="post" action="/admin/open">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
       <button class="btn btn-success" type="submit">Open Session</button>
     </form>
     <form method="post" action="/admin/close">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
       <button class="btn btn-danger" type="submit">Close Session</button>
     </form>
     <form method="post" action="/export_results">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
       <button class="btn btn-primary" type="submit">Export Results</button>
     </form>
     <a class="btn btn-ghost" href="/admin/setup">New Session</a>

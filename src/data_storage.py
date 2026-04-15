@@ -140,11 +140,17 @@ class DataStorage:
         values = self._read_metadata_map(session.metadata_file)
         return values.get("status", "open")
 
-    def save_vote_set(self, session: SessionInfo, voter_name: str, ranked_item_ids: List[int]) -> bool:
-        """Save a complete ranking from one voter, replacing any previous ranking they submitted.
+    def has_voted(self, session: SessionInfo, voter_name: str) -> bool:
+        """Return True if a vote already exists for this name (case-insensitive)."""
+        rows = self._read_vote_rows(session.votes_file)
+        name_lower = voter_name.strip().lower()
+        return any(r["voter_name"].lower() == name_lower for r in rows)
 
-        Returns True if this was a revote (voter already had rows), False if it was their first vote.
-        Replacing all rows instead of appending prevents duplicate entries when someone revotes.
+    def save_vote_set(self, session: SessionInfo, voter_name: str, ranked_item_ids: List[int]) -> None:
+        """Save a complete ranking from one voter.
+
+        Any existing rows for this voter are removed first as a defensive measure —
+        the route layer is responsible for blocking duplicate submissions before this is called.
         """
         if self.read_session_status(session) == "closed":
             raise RuntimeError("Session is closed; voting and revoting are disabled.")
@@ -153,10 +159,8 @@ class DataStorage:
         now = datetime.now()
         now_s = now.strftime(TIMESTAMP_FMT)
 
+        # Remove any stale rows for this voter, then append the new ones.
         existing_rows = self._read_vote_rows(session.votes_file)
-        had_previous_vote = any(r["voter_name"] == safe_name for r in existing_rows)
-
-        # Remove the voter's old rows before writing new ones
         existing_rows = [r for r in existing_rows if r["voter_name"] != safe_name]
         for rank, item_id in enumerate(ranked_item_ids, start=1):
             existing_rows.append(
@@ -165,14 +169,11 @@ class DataStorage:
                     "item_id": str(item_id),
                     "rank": str(rank),
                     "timestamp": now_s,
-                    "revote": "yes" if had_previous_vote else "no",
+                    "revote": "no",
                 }
             )
 
         self._write_vote_rows_atomic(session.votes_file, existing_rows)
-        if had_previous_vote:
-            self._append_session_log(session.session_id, now, f"revote:{safe_name}")
-        return had_previous_vote
 
     def load_votes(self, session: SessionInfo) -> List[Vote]:
         """Read all vote rows from disk and return them as Vote objects."""

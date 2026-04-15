@@ -1,0 +1,9 @@
+voter_name,item_id,rank,timestamp,revote
+Anonymous,8,1,2026-04-15 02:54:30,no
+Anonymous,4,2,2026-04-15 02:54:30,no
+Anonymous,5,3,2026-04-15 02:54:30,no
+Anonymous,2,4,2026-04-15 02:54:30,no
+Anonymous,1,5,2026-04-15 02:54:30,no
+Anonymous,7,6,2026-04-15 02:54:30,no
+Anonymous,6,7,2026-04-15 02:54:30,no
+Anonymous,3,8,2026-04-15 02:54:30,no
