@@ -1,57 +1,101 @@
+"""
+Integration test for the full vote flow.
+
+Integration tests exercise the whole stack — HTTP routing, storage, and results —
+by sending real requests through Flask's test client.  One test covers the entire
+user journey so we catch any breakage where two components interact.
+"""
+
 import csv
+import tempfile
+import unittest
+from pathlib import Path
 
-from tests.helpers import rank_form_data
+from tests.helpers import create_test_client, rank_form_data
 
 
-def test_full_vote_flow(app_context):
-    client = app_context["client"]
-    items = app_context["items"]
-    session = app_context["session"]
-    storage = app_context["storage"]
+class TestFullVoteFlow(unittest.TestCase):
+    """Walks through every major action a user and admin can perform."""
 
-    response = client.get("/")
-    assert response.status_code == 200
-    for item in items:
-        assert item.item_name.encode() in response.data
+    def setUp(self):
+        # A fresh temp directory per test guarantees isolation — votes from
+        # a previous run can't interfere with this one.
+        self._tmp = tempfile.TemporaryDirectory()
+        self.tmp_path = Path(self._tmp.name)
+        self.client, self.items, self.session, self.storage = create_test_client(self.tmp_path)
 
-    form_data = rank_form_data("Alice", items)
-    response = client.post("/submit_vote", data=form_data)
-    assert response.status_code == 200
-    assert b"Vote recorded for Alice" in response.data
+    def tearDown(self):
+        self._tmp.cleanup()
 
-    reversed_ids = [str(item.id) for item in reversed(items)]
-    revote_data = {"voter_name": "Alice", **{f"rank_{i + 1}": reversed_ids[i] for i in range(len(items))}}
-    response = client.post("/submit_vote", data=revote_data)
-    assert response.status_code == 200
-    assert b"Vote updated for Alice" in response.data
+    def test_full_vote_flow(self):
+        client = self.client
+        items = self.items
+        session = self.session
+        storage = self.storage
 
-    response = client.post("/admin/close", follow_redirects=True)
-    assert response.status_code == 200
-    assert b"closed" in response.data or b"Session" in response.data
+        # ── Step 1: ballot loads and shows all items ──────────────────────
+        # Confirms the index route works and that every item name appears in
+        # the HTML so voters can actually see what they're ranking.
+        response = client.get("/")
+        self.assertEqual(response.status_code, 200)
+        for item in items:
+            self.assertIn(item.item_name.encode(), response.data)
 
-    response = client.post("/submit_vote", data=form_data)
-    assert response.status_code == 200
-    assert b"Session is closed" in response.data
+        # ── Step 2: first vote is accepted ────────────────────────────────
+        # rank_form_data builds the rank_1 … rank_N fields the route expects.
+        # We check the confirmation message to prove the vote was recorded.
+        form_data = rank_form_data("Alice", items)
+        response = client.post("/submit_vote", data=form_data)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b"Vote recorded for Alice", response.data)
 
-    response = client.post("/admin/open", follow_redirects=True)
-    assert response.status_code == 200
-    assert b"open" in response.data or b"Session" in response.data
+        # ── Step 3: revote updates the existing record ────────────────────
+        # Submitting a reversed ranking should replace the first vote, not add
+        # a duplicate.  The "updated" message confirms the revote path ran.
+        reversed_ids = [str(item.id) for item in reversed(items)]
+        revote_data = {"voter_name": "Alice", **{f"rank_{i + 1}": reversed_ids[i] for i in range(len(items))}}
+        response = client.post("/submit_vote", data=revote_data)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b"Vote updated for Alice", response.data)
 
-    response = client.post("/submit_vote", data=form_data)
-    assert response.status_code == 200
-    assert b"Vote recorded for Alice" in response.data or b"Vote updated for Alice" in response.data
+        # ── Step 4: closing the session blocks further votes ──────────────
+        response = client.post("/admin/close", follow_redirects=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(b"closed" in response.data or b"Session" in response.data)
 
-    response = client.get("/results")
-    assert response.status_code == 200
-    for item in items:
-        assert item.item_name.encode() in response.data
+        response = client.post("/submit_vote", data=form_data)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b"Session is closed", response.data)
 
-    response = client.post("/export_results")
-    assert response.status_code == 200
-    expected_export = storage.base_dir / f"results_{session.session_id}.txt"
-    assert expected_export.exists()
-    with expected_export.open("r", encoding="utf-8", newline="") as f:
-        reader = csv.DictReader(f)
-        rows = list(reader)
-    assert len(rows) == len(items)
-    assert rows[0]["item_name"] in {item.item_name for item in items}
+        # ── Step 5: re-opening the session allows voting again ────────────
+        response = client.post("/admin/open", follow_redirects=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(b"open" in response.data or b"Session" in response.data)
+
+        response = client.post("/submit_vote", data=form_data)
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(
+            b"Vote recorded for Alice" in response.data
+            or b"Vote updated for Alice" in response.data
+        )
+
+        # ── Step 6: results page lists every item ─────────────────────────
+        # We don't check exact rankings here — that's covered by the unit tests.
+        # We just confirm all items appear so the page isn't blank.
+        response = client.get("/results")
+        self.assertEqual(response.status_code, 200)
+        for item in items:
+            self.assertIn(item.item_name.encode(), response.data)
+
+        # ── Step 7: export writes a valid CSV to disk ─────────────────────
+        # Checks that the file exists, has the right number of rows, and that
+        # the item_name column contains real data.
+        response = client.post("/export_results")
+        self.assertEqual(response.status_code, 200)
+        expected_export = storage.base_dir / f"results_{session.session_id}.txt"
+        self.assertTrue(expected_export.exists())
+        with expected_export.open("r", encoding="utf-8", newline="") as f:
+            reader = csv.DictReader(f)
+            rows = list(reader)
+        self.assertEqual(len(rows), len(items))
+        self.assertIn(rows[0]["item_name"], {item.item_name for item in items})

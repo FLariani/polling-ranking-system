@@ -1,3 +1,10 @@
+"""
+Handles all reading and writing of data to disk.
+
+Everything file-related lives here so the rest of the app never touches
+the filesystem directly — this makes storage easy to swap or test in isolation.
+"""
+
 import csv
 import os
 from dataclasses import dataclass
@@ -8,26 +15,36 @@ from typing import Dict, List, Optional
 from models import Item, Vote
 
 TIMESTAMP_FMT = "%Y-%m-%d %H:%M:%S"
-MAX_ITEM_NAME = 100
-MAX_VOTER_NAME = 50
+MAX_ITEM_NAME = 100   # caps item name length to keep the UI and CSV files manageable
+MAX_VOTER_NAME = 50   # same reason for voter names
 
 
 @dataclass
 class SessionInfo:
+    """Holds the file paths and status for one voting session."""
+
     session_id: str
-    votes_file: Path
-    metadata_file: Path
+    votes_file: Path      # CSV that stores every vote row
+    metadata_file: Path   # key=value file that tracks session status (open/closed)
     created_at: datetime
-    status: str
+    status: str           # "open" or "closed"
 
 
 class DataStorage:
+    """Manages sessions, votes, and results files under a single base directory."""
+
     def __init__(self, base_dir: Path) -> None:
         self.base_dir = base_dir
-        self.base_dir.mkdir(parents=True, exist_ok=True)
+        self.base_dir.mkdir(parents=True, exist_ok=True)  # create the folder if it doesn't exist yet
         self.session_log = self.base_dir / "sessions_log.txt"
 
     def load_items_from_config(self, config_path: Path) -> List[Item]:
+        """Read item names from a plain-text file (one name per line).
+
+        Raises FileNotFoundError if the file is missing, or ValueError if a
+        name is too long or the item count is outside the 2–50 allowed range.
+        Validating here means the rest of the app can assume items are always valid.
+        """
         if not config_path.exists():
             raise FileNotFoundError(f"Config file not found: {config_path}")
 
@@ -36,7 +53,7 @@ class DataStorage:
             for line_num, raw in enumerate(f, start=1):
                 value = raw.strip()
                 if not value:
-                    continue
+                    continue  # skip blank lines
                 if len(value) > MAX_ITEM_NAME:
                     raise ValueError(f"Item on line {line_num} exceeds {MAX_ITEM_NAME} characters.")
                 items.append(Item(id=len(items) + 1, item_name=value, category="default"))
@@ -46,9 +63,16 @@ class DataStorage:
         return items
 
     def create_session(self) -> SessionInfo:
+        """Create a new voting session and its backing files on disk.
+
+        Files are created upfront (not on first vote) so we know the session
+        is ready before any voter tries to submit.  A numeric suffix is appended
+        if two sessions are created within the same second.
+        """
         now = datetime.now()
         session_id = now.strftime("%Y%m%d_%H%M%S")
 
+        # Find a unique session ID — handles the rare case of two sessions in one second
         suffix = 0
         while True:
             candidate = f"{session_id}_{suffix}" if suffix else session_id
@@ -59,11 +83,12 @@ class DataStorage:
                 break
             suffix += 1
 
+        # Write the votes CSV header so DictReader always has column names
         with votes_file.open("w", encoding="utf-8", newline="") as vf:
             writer = csv.writer(vf)
             writer.writerow(["voter_name", "item_id", "rank", "timestamp", "revote"])
             vf.flush()
-            os.fsync(vf.fileno())
+            os.fsync(vf.fileno())  # force the OS to flush its write cache to disk
 
         with metadata_file.open("w", encoding="utf-8") as mf:
             mf.write(f"session_id={session_id}\n")
@@ -82,6 +107,7 @@ class DataStorage:
         )
 
     def set_session_status(self, session: SessionInfo, status: str) -> None:
+        """Overwrite the metadata file to change session status to 'open' or 'closed'."""
         if status not in {"open", "closed"}:
             raise ValueError("Invalid session status")
         lines = {
@@ -98,10 +124,20 @@ class DataStorage:
         self._append_session_log(session.session_id, datetime.now(), f"status:{status}")
 
     def read_session_status(self, session: SessionInfo) -> str:
+        """Read the current status directly from the metadata file.
+
+        Reading from disk (rather than trusting the in-memory SessionInfo.status)
+        means the status stays accurate even if the file was changed externally.
+        """
         values = self._read_metadata_map(session.metadata_file)
         return values.get("status", "open")
 
     def save_vote_set(self, session: SessionInfo, voter_name: str, ranked_item_ids: List[int]) -> bool:
+        """Save a complete ranking from one voter, replacing any previous ranking they submitted.
+
+        Returns True if this was a revote (voter already had rows), False if it was their first vote.
+        Replacing all rows instead of appending prevents duplicate entries when someone revotes.
+        """
         if self.read_session_status(session) == "closed":
             raise RuntimeError("Session is closed; voting and revoting are disabled.")
 
@@ -112,6 +148,7 @@ class DataStorage:
         existing_rows = self._read_vote_rows(session.votes_file)
         had_previous_vote = any(r["voter_name"] == safe_name for r in existing_rows)
 
+        # Remove the voter's old rows before writing new ones
         existing_rows = [r for r in existing_rows if r["voter_name"] != safe_name]
         for rank, item_id in enumerate(ranked_item_ids, start=1):
             existing_rows.append(
@@ -130,6 +167,7 @@ class DataStorage:
         return had_previous_vote
 
     def load_votes(self, session: SessionInfo) -> List[Vote]:
+        """Read all vote rows from disk and return them as Vote objects."""
         rows = self._read_vote_rows(session.votes_file)
         out: List[Vote] = []
         for r in rows:
@@ -144,6 +182,11 @@ class DataStorage:
         return out
 
     def export_results(self, out_file: Path, rows: List[Dict[str, str]]) -> None:
+        """Write a results summary CSV to out_file.
+
+        Enforcing the .txt extension matches the naming convention expected by
+        the integration test and the admin UI.
+        """
         if out_file.suffix.lower() != ".txt":
             raise ValueError("Results export file must use .txt extension.")
 
@@ -156,13 +199,19 @@ class DataStorage:
             f.flush()
             os.fsync(f.fileno())
 
+    # ------------------------------------------------------------------ #
+    # Private helpers — used only inside this class                       #
+    # ------------------------------------------------------------------ #
+
     def _append_session_log(self, session_id: str, when: datetime, event: str) -> None:
+        """Append one audit line to the session log. Used to track key events."""
         with self.session_log.open("a", encoding="utf-8") as log:
             log.write(f"{when.strftime(TIMESTAMP_FMT)},{session_id},{event}\n")
             log.flush()
             os.fsync(log.fileno())
 
     def _read_metadata_map(self, meta_file: Path) -> Dict[str, str]:
+        """Parse a key=value metadata file into a dictionary."""
         values: Dict[str, str] = {}
         if not meta_file.exists():
             return values
@@ -176,6 +225,7 @@ class DataStorage:
         return values
 
     def _read_vote_rows(self, votes_file: Path) -> List[Dict[str, str]]:
+        """Return all rows from the votes CSV as a list of dicts."""
         if not votes_file.exists():
             return []
         with votes_file.open("r", encoding="utf-8", newline="") as f:
@@ -183,6 +233,11 @@ class DataStorage:
             return list(reader)
 
     def _write_vote_rows_atomic(self, votes_file: Path, rows: List[Dict[str, str]]) -> None:
+        """Write rows to a temporary file, then rename it over the real file.
+
+        Writing to a temp file first means a crash mid-write can't corrupt the
+        existing votes — the rename only happens once the new file is complete.
+        """
         tmp = votes_file.with_suffix(".tmp")
         with tmp.open("w", encoding="utf-8", newline="") as f:
             writer = csv.DictWriter(
@@ -193,4 +248,4 @@ class DataStorage:
             writer.writerows(rows)
             f.flush()
             os.fsync(f.fileno())
-        os.replace(tmp, votes_file)
+        os.replace(tmp, votes_file)  # atomic on most OSes — old file is replaced in one step

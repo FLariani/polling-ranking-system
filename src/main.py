@@ -1,3 +1,10 @@
+"""
+Flask web application entry point.
+
+Routes are defined here. Each route maps a URL to a Python function that
+reads the request, does work, and returns an HTML response.
+"""
+
 import argparse
 import atexit
 from datetime import datetime
@@ -13,28 +20,38 @@ from results_calculator import calculate_results, filter_votes_by_time
 
 app = Flask(__name__)
 
+# Module-level globals hold shared state between requests.
+# Flask handles one request at a time in dev mode, so this is safe here.
 storage: Optional[DataStorage] = None
 items: List[Item] = []
 current_session: Optional[SessionInfo] = None
 
 
 def cleanup() -> None:
-    # Python runtime handles memory cleanup; this hook mirrors SDD atexit intent.
+    # Registered with atexit so it runs when the server shuts down.
+    # Currently a no-op — Python handles memory automatically — but the
+    # hook is here if teardown logic is needed later.
     pass
 
 
 @app.route("/")
 def index():
+    """Show the voting ballot. Items are shuffled on every page load to reduce position bias."""
     if not items:
         return render_template("message.html", title="Configuration Error", message="No items loaded.")
 
     voter_name = request.args.get("voter_name", "")
-    randomized = shuffled_items(items)
+    randomized = shuffled_items(items)  # new random order each time
     return render_template("vote.html", items=randomized, voter_name=voter_name)
 
 
 @app.route("/submit_vote", methods=["POST"])
 def submit_vote():
+    """Accept a ranked ballot from the form and save it to disk.
+
+    The form sends one hidden field per rank position (rank_1, rank_2 …).
+    We read them in order to reconstruct the voter's full ranking.
+    """
     global current_session
     if not current_session:
         return render_template("message.html", title="Session Error", message="No active session.")
@@ -54,12 +71,14 @@ def submit_vote():
         used.add(item_id)
         ordered_ids.append(item_id)
 
+    # Sanity-check: the submitted IDs must match the known item set exactly
     if set(ordered_ids) != {it.id for it in items}:
         return render_template("message.html", title="Input Error", message="Invalid ranking data submitted.")
 
     try:
         revote = storage.save_vote_set(current_session, voter_name, ordered_ids)
     except RuntimeError as ex:
+        # save_vote_set raises RuntimeError when the session is closed
         return render_template("message.html", title="Session Closed", message=str(ex))
 
     if revote:
@@ -71,12 +90,14 @@ def submit_vote():
 
 @app.route("/admin")
 def admin():
+    """Show the admin dashboard with the current session status."""
     status = storage.read_session_status(current_session) if current_session else "closed"
     return render_template("admin.html", session=current_session, status=status)
 
 
 @app.route("/admin/close", methods=["POST"])
 def close_session():
+    """Close the session so no new votes can be submitted."""
     if not current_session:
         return render_template("message.html", title="Session Error", message="No active session.")
     storage.set_session_status(current_session, "closed")
@@ -85,6 +106,7 @@ def close_session():
 
 @app.route("/admin/open", methods=["POST"])
 def open_session():
+    """Re-open a closed session to allow voting again."""
     if not current_session:
         return render_template("message.html", title="Session Error", message="No active session.")
     storage.set_session_status(current_session, "open")
@@ -93,12 +115,14 @@ def open_session():
 
 @app.route("/results")
 def results():
+    """Display current results, optionally filtered to a time window via query params."""
     if not current_session:
         return render_template("message.html", title="Session Error", message="No active session.")
 
     start_s = request.args.get("start", "").strip()
     end_s = request.args.get("end", "").strip()
 
+    # Parse the optional time-filter params; leave as None if not provided
     start = datetime.strptime(start_s, TIMESTAMP_FMT) if start_s else None
     end = datetime.strptime(end_s, TIMESTAMP_FMT) if end_s else None
 
@@ -110,6 +134,7 @@ def results():
 
 @app.route("/export_results", methods=["POST"])
 def export_results():
+    """Write results to a .txt CSV file in the data directory and confirm to the user."""
     if not current_session:
         return render_template("message.html", title="Session Error", message="No active session.")
 
@@ -131,6 +156,7 @@ def export_results():
 
 
 def parse_args() -> argparse.Namespace:
+    """Parse command-line arguments so the app can be configured without editing code."""
     parser = argparse.ArgumentParser(description="Bias-Free Polling and Ranking")
     parser.add_argument(
         "--config",
@@ -143,6 +169,11 @@ def parse_args() -> argparse.Namespace:
 
 
 def init_app(config_path: Path = Path("config/items.txt"), data_dir: Path = Path("data")) -> None:
+    """Initialise storage, load items, and create a new session.
+
+    Extracted from __main__ so tests can call it directly without starting the
+    HTTP server — this is the standard pattern for making Flask apps testable.
+    """
     global storage, items, current_session
 
     storage = DataStorage(data_dir)
@@ -153,6 +184,7 @@ def init_app(config_path: Path = Path("config/items.txt"), data_dir: Path = Path
 
 
 def bootstrap() -> argparse.Namespace:
+    """Parse args and initialise the app; returns args so the caller knows host/port."""
     args = parse_args()
     init_app(Path(args.config), Path("data"))
     return args
