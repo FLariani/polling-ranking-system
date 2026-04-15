@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Welcome{% endblock %}
+
+{% block content %}
+<h1>Bias-Free Polling</h1>
+<p class="subtitle">Who are you here as today?</p>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-top: 0.5rem;">
+
+  <!-- Admin card -->
+  <a class="role-card" href="/admin">
+    <div class="role-icon">&#9881;</div>
+    <h2>Admin</h2>
+    <p>Create and manage a session, open or close voting, and export results.</p>
+    <span class="btn btn-primary" style="margin-top: auto;">
+      {% if has_session %}Go to Dashboard{% else %}Create Session{% endif %}
+    </span>
+  </a>
+
+  <!-- Voter card -->
+  <a class="role-card" href="/vote">
+    <div class="role-icon">&#10003;</div>
+    <h2>Voter</h2>
+    <p>Join an open session and submit your ranking or choice.</p>
+    <span class="btn btn-primary" style="margin-top: auto;">Join &amp; Vote</span>
+  </a>
+
+</div>
+
+<style>
+  .role-card {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    background: var(--surface);
+    border: 2px solid var(--border);
+    border-radius: var(--radius);
+    padding: 2rem 1.75rem;
+    text-decoration: none;
+    color: var(--text);
+    box-shadow: var(--shadow);
+    transition: border-color .15s, box-shadow .15s, transform .15s;
+  }
+  .role-card:hover {
+    border-color: var(--primary);
+    box-shadow: 0 4px 20px rgba(79,70,229,.18);
+    transform: translateY(-2px);
+  }
+  .role-icon {
+    font-size: 2rem;
+    margin-bottom: 0.75rem;
+    color: var(--primary);
+  }
+  .role-card h2 { margin-bottom: 0.5rem; font-size: 1.25rem; }
+  .role-card p  { color: var(--muted); font-size: 0.9rem; line-height: 1.55; flex: 1; margin-bottom: 1.25rem; }
+</style>
+{% endblock %}

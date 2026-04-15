@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Bias-Free Polling{% endblock %}</title>
+  <style>
+    /* ── Colour tokens ───────────────────────────────────────────────── */
+    :root {
+      --bg:              #f0f4ff;
+      --surface:         #ffffff;
+      --primary:         #4f46e5;
+      --primary-hover:   #4338ca;
+      --success:         #059669;
+      --success-hover:   #047857;
+      --danger:          #dc2626;
+      --danger-hover:    #b91c1c;
+      --text:            #1e1b4b;
+      --muted:           #6b7280;
+      --border:          #e0e7ff;
+      --shadow:          0 1px 3px rgba(79,70,229,.1), 0 4px 16px rgba(79,70,229,.07);
+      --radius:          12px;
+    }
+
+    /* ── Reset & base ────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; }
+
+    body {
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      margin: 0;
+      min-height: 100vh;
+    }
+
+    /* ── Header ──────────────────────────────────────────────────────── */
+    .site-header {
+      background: var(--primary);
+      color: #fff;
+      height: 56px;
+      padding: 0 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 2px 8px rgba(79,70,229,.35);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    .site-header .logo {
+      font-size: 1.05rem;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      color: #fff;
+      text-decoration: none;
+    }
+
+    .site-header nav a {
+      color: rgba(255,255,255,.8);
+      text-decoration: none;
+      font-size: 0.875rem;
+      font-weight: 500;
+      margin-left: 1.5rem;
+      transition: color .15s;
+    }
+    .site-header nav a:hover { color: #fff; }
+
+    /* ── Page wrapper ────────────────────────────────────────────────── */
+    .page {
+      max-width: 860px;
+      margin: 2.5rem auto;
+      padding: 0 1.25rem;
+    }
+
+    /* ── Typography ──────────────────────────────────────────────────── */
+    h1 { font-size: 1.75rem; font-weight: 700; margin: 0 0 0.3rem; letter-spacing: -.02em; }
+    h2 { font-size: 1.1rem;  font-weight: 600; margin: 0 0 1rem; }
+    p  { margin: 0 0 1rem; line-height: 1.6; }
+
+    .subtitle { color: var(--muted); font-size: 0.95rem; margin-bottom: 1.5rem; }
+
+    /* ── Card ────────────────────────────────────────────────────────── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.75rem;
+      box-shadow: var(--shadow);
+    }
+
+    /* ── Form controls ───────────────────────────────────────────────── */
+    .field           { margin-bottom: 1.1rem; }
+    .field label {
+      display: block;
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-bottom: 0.35rem;
+      color: var(--text);
+    }
+    .field input,
+    .field select {
+      width: 100%;
+      padding: 0.55rem 0.75rem;
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      font-size: 0.95rem;
+      font-family: inherit;
+      color: var(--text);
+      background: var(--surface);
+      outline: none;
+      transition: border-color .15s, box-shadow .15s;
+      appearance: none;
+      -webkit-appearance: none;
+    }
+    .field input:focus,
+    .field select:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(79,70,229,.15);
+    }
+
+    /* Custom select arrow */
+    .field select {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 0.65rem center;
+      padding-right: 2.2rem;
+    }
+
+    /* ── Divider ─────────────────────────────────────────────────────── */
+    .divider { border: none; border-top: 1px solid var(--border); margin: 1.5rem 0; }
+
+    /* ── Buttons ─────────────────────────────────────────────────────── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.4rem;
+      padding: 0.55rem 1.3rem;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.875rem;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      text-decoration: none;
+      white-space: nowrap;
+      transition: background .15s, box-shadow .15s, transform .1s;
+    }
+    .btn:active { transform: translateY(1px); }
+
+    .btn-primary {
+      background: var(--primary);
+      color: #fff;
+      box-shadow: 0 1px 4px rgba(79,70,229,.3);
+    }
+    .btn-primary:hover { background: var(--primary-hover); box-shadow: 0 2px 8px rgba(79,70,229,.4); }
+
+    .btn-success {
+      background: var(--success);
+      color: #fff;
+      box-shadow: 0 1px 4px rgba(5,150,105,.25);
+    }
+    .btn-success:hover { background: var(--success-hover); }
+
+    .btn-danger {
+      background: var(--danger);
+      color: #fff;
+      box-shadow: 0 1px 4px rgba(220,38,38,.25);
+    }
+    .btn-danger:hover { background: var(--danger-hover); }
+
+    .btn-ghost {
+      background: transparent;
+      color: var(--primary);
+      border: 1.5px solid var(--border);
+    }
+    .btn-ghost:hover { background: var(--bg); border-color: var(--primary); }
+
+    /* ── Button row ──────────────────────────────────────────────────── */
+    .btn-row { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-top: 1.25rem; }
+    .btn-row form { margin: 0; }
+
+    /* ── Status badge ────────────────────────────────────────────────── */
+    .badge {
+      display: inline-block;
+      padding: 0.2rem 0.7rem;
+      border-radius: 999px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+    }
+    .badge-open     { background: #dcfce7; color: #166534; }
+    .badge-closed   { background: #fee2e2; color: #991b1b; }
+    .badge-info     { background: #e0e7ff; color: #3730a3; }
+
+    /* ── Table ───────────────────────────────────────────────────────── */
+    table { width: 100%; border-collapse: collapse; }
+    thead tr { background: var(--bg); }
+    th {
+      padding: 0.65rem 1rem;
+      text-align: left;
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      color: var(--muted);
+      border-bottom: 2px solid var(--border);
+    }
+    td {
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.95rem;
+    }
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr:hover { background: #f8f9ff; }
+
+    .rank-1 { color: #b45309; font-weight: 700; }
+    .rank-2 { color: #64748b; font-weight: 600; }
+    .rank-3 { color: #92400e; font-weight: 600; }
+  </style>
+  {% block head %}{% endblock %}
+</head>
+<body>
+  <header class="site-header">
+    <a class="logo" href="/">Bias-Free Polling</a>
+    <nav>
+      <a href="/vote">Vote</a>
+      <a href="/results">Results</a>
+      <a href="/admin">Admin</a>
+    </nav>
+  </header>
+  <main class="page">
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

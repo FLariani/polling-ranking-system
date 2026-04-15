@@ -28,6 +28,8 @@ class SessionInfo:
     metadata_file: Path   # key=value file that tracks session status (open/closed)
     created_at: datetime
     status: str           # "open" or "closed"
+    session_type: str = "ranking"  # "ranking" (order all items) or "voting" (pick one)
+    anonymous: bool = False        # if True, voter name field is hidden from voters
 
 
 class DataStorage:
@@ -62,13 +64,15 @@ class DataStorage:
             raise ValueError("Config must contain between 2 and 50 non-empty item lines.")
         return items
 
-    def create_session(self) -> SessionInfo:
+    def create_session(self, session_type: str = "ranking", anonymous: bool = False) -> SessionInfo:
         """Create a new voting session and its backing files on disk.
 
         Files are created upfront (not on first vote) so we know the session
         is ready before any voter tries to submit.  A numeric suffix is appended
         if two sessions are created within the same second.
         """
+        if session_type not in {"ranking", "voting"}:
+            raise ValueError("session_type must be 'ranking' or 'voting'.")
         now = datetime.now()
         session_id = now.strftime("%Y%m%d_%H%M%S")
 
@@ -94,6 +98,8 @@ class DataStorage:
             mf.write(f"session_id={session_id}\n")
             mf.write(f"created_at={now.strftime(TIMESTAMP_FMT)}\n")
             mf.write("status=open\n")
+            mf.write(f"session_type={session_type}\n")
+            mf.write(f"anonymous={'true' if anonymous else 'false'}\n")
             mf.flush()
             os.fsync(mf.fileno())
 
@@ -104,6 +110,8 @@ class DataStorage:
             metadata_file=metadata_file,
             created_at=now,
             status="open",
+            session_type=session_type,
+            anonymous=anonymous,
         )
 
     def set_session_status(self, session: SessionInfo, status: str) -> None:

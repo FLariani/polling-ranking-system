@@ -1,47 +1,100 @@
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Results</title>
-  <style>
-    body { font-family: Georgia, serif; max-width: 960px; margin: 2rem auto; padding: 0 1rem; }
-    table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
-    th, td { border: 1px solid #bbb; padding: 0.5rem; text-align: left; }
-    .filters { border: 1px solid #bbb; padding: 1rem; border-radius: 8px; }
-    input { padding: 0.4rem; width: 220px; }
-    button { padding: 0.45rem 0.8rem; }
-  </style>
-</head>
-<body>
-  <h1>Session Results</h1>
+{% extends "base.html" %}
+{% block title %}Session Results{% endblock %}
 
-  <div class="filters">
-    <p>Timestamp format: {{ fmt }}</p>
-    <form method="get" action="/results">
+{% block content %}
+<h1>Session Results</h1>
+{% if session_type == "ranking" %}
+  <p class="subtitle">Lower average rank = stronger preference. Rank 1 is first choice.</p>
+{% else %}
+  <p class="subtitle">{{ total_voters }} vote{{ 's' if total_voters != 1 }} cast so far.</p>
+{% endif %}
+
+<div class="card" style="margin-bottom: 1.5rem;">
+  <h2>Filter by Time Window</h2>
+  <form method="get" action="/results"
+        style="display: flex; gap: 1rem; align-items: flex-end; flex-wrap: wrap;">
+    <div class="field" style="margin: 0; flex: 1; min-width: 200px;">
       <label>Start</label>
-      <input name="start" value="{{ start }}" placeholder="YYYY-MM-DD HH:MM:SS" />
+      <input name="start" value="{{ start }}" placeholder="{{ fmt }}" />
+    </div>
+    <div class="field" style="margin: 0; flex: 1; min-width: 200px;">
       <label>End</label>
-      <input name="end" value="{{ end }}" placeholder="YYYY-MM-DD HH:MM:SS" />
-      <button type="submit">Apply</button>
-    </form>
-  </div>
+      <input name="end" value="{{ end }}" placeholder="{{ fmt }}" />
+    </div>
+    <div style="display: flex; gap: 0.5rem;">
+      <button class="btn btn-primary" type="submit">Apply</button>
+      {% if start or end %}
+      <a class="btn btn-ghost" href="/results">Clear</a>
+      {% endif %}
+    </div>
+  </form>
+</div>
 
+<div class="card">
   <table>
     <thead>
-      <tr><th>Item</th><th>Average Rank</th><th>Vote Count</th></tr>
+      <tr>
+        <th style="width: 3rem;">#</th>
+        <th>Item</th>
+        {% if session_type == "ranking" %}
+          <th>Avg Rank</th>
+        {% else %}
+          <th>Votes</th>
+          <th>Share</th>
+        {% endif %}
+        {% if session_type == "ranking" %}
+          <th>Votes</th>
+        {% endif %}
+      </tr>
     </thead>
     <tbody>
       {% for row in rows %}
       <tr>
-        <td>{{ row.item_name }}</td>
-        <td>{% if row.vote_count %}{{ "%.4f"|format(row.average_rank) }}{% else %}-{% endif %}</td>
-        <td>{{ row.vote_count }}</td>
+        <td class="{% if loop.index == 1 %}rank-1{% elif loop.index == 2 %}rank-2{% elif loop.index == 3 %}rank-3{% endif %}">
+          {{ loop.index }}
+        </td>
+        <td style="font-weight: 500;">{{ row.item_name }}</td>
+        {% if session_type == "ranking" %}
+          <td>
+            {% if row.vote_count %}
+              {{ "%.4f"|format(row.average_rank) }}
+            {% else %}
+              <span style="color: var(--muted);">—</span>
+            {% endif %}
+          </td>
+          <td>{{ row.vote_count }}</td>
+        {% else %}
+          <td>{{ row.vote_count }}</td>
+          <td>
+            {% if total_voters > 0 %}
+              {% set pct = (row.vote_count / total_voters * 100) | round(1) %}
+              <div class="bar-wrap">
+                <div class="bar-track">
+                  <div class="bar-fill" data-pct="{{ pct }}"></div>
+                </div>
+                <span class="bar-label">{{ pct }}%</span>
+              </div>
+            {% else %}
+              <span style="color: var(--muted);">—</span>
+            {% endif %}
+          </td>
+        {% endif %}
       </tr>
       {% endfor %}
     </tbody>
   </table>
+</div>
 
-  <p><a href="/">Back to Voting</a> | <a href="/admin">Admin Panel</a></p>
-</body>
-</html>
+<style>
+  .bar-wrap  { display: flex; align-items: center; gap: .6rem; }
+  .bar-track { flex: 1; background: var(--border); border-radius: 999px; height: 8px; min-width: 60px; }
+  .bar-fill  { width: 0; background: var(--primary); border-radius: 999px; height: 8px; transition: width .4s ease; }
+  .bar-label { font-size: .85rem; color: var(--muted); white-space: nowrap; }
+</style>
+
+<script>
+  document.querySelectorAll('.bar-fill').forEach(function (el) {
+    el.style.width = el.dataset.pct + '%';
+  });
+</script>
+{% endblock %}

@@ -18,6 +18,9 @@ def create_test_client(tmp_path: Path) -> Tuple[FlaskClient, Sequence[Item], mai
 
     Using a tmp_path for every call means each test gets a clean slate —
     votes from one test can't leak into another.
+
+    After init_app the session is None (admin must create it explicitly), so we
+    POST to /admin/create here to produce a ready-to-use ranking session.
     """
     config_path = tmp_path / "items.txt"
     config_path.write_text("Apple\nBanana\nCherry\n", encoding="utf-8")  # minimal valid config
@@ -25,7 +28,11 @@ def create_test_client(tmp_path: Path) -> Tuple[FlaskClient, Sequence[Item], mai
     data_dir = tmp_path / "data"
     main.init_app(config_path, data_dir)
 
-    return main.app.test_client(), main.items, main.current_session, main.storage
+    client = main.app.test_client()
+    # Create a default non-anonymous ranking session so tests can vote immediately.
+    client.post("/admin/create", data={"session_type": "ranking"})
+
+    return client, main.items, main.current_session, main.storage
 
 
 def rank_form_data(voter_name: str, items: Sequence[Item]) -> dict:

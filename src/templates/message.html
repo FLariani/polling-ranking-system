@@ -1,19 +1,14 @@
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{{ title }}</title>
-  <style>
-    body { font-family: Georgia, serif; max-width: 700px; margin: 2rem auto; padding: 0 1rem; }
-    .box { border: 1px solid #bbb; border-radius: 8px; padding: 1rem; }
-  </style>
-</head>
-<body>
-  <h1>{{ title }}</h1>
-  <div class="box">
-    <p>{{ message }}</p>
-    <p><a href="/">Back to Voting</a> | <a href="/admin">Admin</a> | <a href="/results">Results</a></p>
+{% extends "base.html" %}
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<h1>{{ title }}</h1>
+<div class="card">
+  <p style="font-size: 1.05rem; color: var(--text);">{{ message }}</p>
+  <div class="btn-row">
+    <a class="btn btn-primary" href="/">Back to Voting</a>
+    <a class="btn btn-ghost"   href="/admin">Admin</a>
+    <a class="btn btn-ghost"   href="/results">Results</a>
   </div>
-</body>
-</html>
+</div>
+{% endblock %}

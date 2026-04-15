@@ -34,9 +34,9 @@ class TestFullVoteFlow(unittest.TestCase):
         storage = self.storage
 
         # ── Step 1: ballot loads and shows all items ──────────────────────
-        # Confirms the index route works and that every item name appears in
+        # Confirms the /vote route works and that every item name appears in
         # the HTML so voters can actually see what they're ranking.
-        response = client.get("/")
+        response = client.get("/vote")
         self.assertEqual(response.status_code, 200)
         for item in items:
             self.assertIn(item.item_name.encode(), response.data)

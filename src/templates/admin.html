@@ -1,27 +1,71 @@
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Admin</title>
-  <style>
-    body { font-family: Georgia, serif; max-width: 860px; margin: 2rem auto; padding: 0 1rem; }
-    .card { border: 1px solid #bbb; padding: 1rem; border-radius: 8px; }
-    form { display: inline-block; margin-right: 0.5rem; }
-    button { padding: 0.5rem 0.8rem; }
-  </style>
-</head>
-<body>
-  <h1>Admin Panel</h1>
-  <div class="card">
-    <p>Session: {{ session.session_id if session else 'N/A' }}</p>
-    <p>Status: <strong>{{ status }}</strong></p>
+{% extends "base.html" %}
+{% block title %}Admin Panel{% endblock %}
 
-    <form method="post" action="/admin/open"><button type="submit">Open Session</button></form>
-    <form method="post" action="/admin/close"><button type="submit">Close Session</button></form>
+{% block content %}
+<h1>Admin Panel</h1>
+<p class="subtitle">Manage the current voting session.</p>
 
-    <p><a href="/results">Results</a> | <a href="/">Back to Voting</a></p>
-    <form method="post" action="/export_results"><button type="submit">Export Results</button></form>
+<div class="card">
+  <table style="width: auto; margin: 0 0 1.5rem; border: none;">
+    <tbody>
+      <tr>
+        <td class="meta-label">Session ID</td>
+        <td style="font-family: monospace; font-size: .95rem;">{{ session.session_id if session else 'N/A' }}</td>
+      </tr>
+      <tr>
+        <td class="meta-label">Status</td>
+        <td>
+          <span class="badge {% if status == 'open' %}badge-open{% else %}badge-closed{% endif %}">
+            {{ status }}
+          </span>
+        </td>
+      </tr>
+      <tr>
+        <td class="meta-label">Type</td>
+        <td>
+          <span class="badge badge-info">
+            {{ session.session_type if session else '—' }}
+          </span>
+        </td>
+      </tr>
+      <tr>
+        <td class="meta-label">Anonymous</td>
+        <td>
+          {% if session and session.anonymous %}
+            <span class="badge badge-closed">On</span>
+          {% else %}
+            <span class="badge" style="background:#f3f4f6; color:#374151;">Off</span>
+          {% endif %}
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="btn-row">
+    <form method="post" action="/admin/open">
+      <button class="btn btn-success" type="submit">Open Session</button>
+    </form>
+    <form method="post" action="/admin/close">
+      <button class="btn btn-danger" type="submit">Close Session</button>
+    </form>
+    <form method="post" action="/export_results">
+      <button class="btn btn-primary" type="submit">Export Results</button>
+    </form>
+    <a class="btn btn-ghost" href="/admin/setup">New Session</a>
   </div>
-</body>
-</html>
+</div>
+
+<style>
+  .meta-label {
+    padding: .45rem 1.5rem .45rem 0;
+    color: var(--muted);
+    font-size: .8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    white-space: nowrap;
+    border: none;
+  }
+  tbody td { border: none; padding: .45rem 0; }
+</style>
+{% endblock %}

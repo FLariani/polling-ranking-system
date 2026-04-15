@@ -1,35 +1,38 @@
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Bias-Free Voting</title>
-  <style>
-    body { font-family: Georgia, serif; max-width: 860px; margin: 2rem auto; padding: 0 1rem; }
-    h1 { margin-bottom: 0.2rem; }
-    .card { border: 1px solid #bbb; padding: 1rem; border-radius: 8px; }
-    .row { margin: 0.7rem 0; }
-    label { font-weight: 600; }
-    select, input { width: 100%; padding: 0.5rem; }
-    button { margin-top: 1rem; padding: 0.6rem 1rem; }
-  </style>
-</head>
-<body>
-  <h1>Bias-Free Polling and Ranking</h1>
-  <p>Each rank selects one item. Rank 1 is best.</p>
+{% extends "base.html" %}
+{% block title %}Cast Your Vote{% endblock %}
 
-  <div class="card">
-    <form method="post" action="/submit_vote">
-      <div class="row">
-        <label for="voter_name">Voter Name (optional)</label>
-        <input id="voter_name" name="voter_name" value="{{ voter_name }}" maxlength="50" />
-      </div>
+{% block content %}
 
+{% if session_type == "ranking" %}
+  <h1>Rank the Items</h1>
+  <p class="subtitle">Assign each item a unique rank. Rank 1 is your top choice.</p>
+{% else %}
+  <h1>Cast Your Vote</h1>
+  <p class="subtitle">Select the one item you want to vote for.</p>
+{% endif %}
+
+<div class="card">
+  <form method="post" action="/submit_vote">
+
+    <!-- Name field — hidden when the admin enabled anonymous mode -->
+    {% if not anonymous %}
+    <div class="field">
+      <label for="voter_name">
+        Your Name
+        <span style="font-weight:400; color:var(--muted)">(optional)</span>
+      </label>
+      <input id="voter_name" name="voter_name" maxlength="50" placeholder="Anonymous" />
+    </div>
+    <hr class="divider">
+    {% endif %}
+
+    {% if session_type == "ranking" %}
+      <!-- ── Ranking: one dropdown per rank position ── -->
       {% for rank in range(1, (items|length) + 1) %}
-      <div class="row">
-        <label for="rank_{{rank}}">Rank {{rank}}</label>
+      <div class="field">
+        <label for="rank_{{rank}}">Rank {{ rank }}</label>
         <select id="rank_{{rank}}" name="rank_{{rank}}" required>
-          <option value="">Select item</option>
+          <option value="">— Select item —</option>
           {% for item in items %}
           <option value="{{ item.id }}">{{ item.item_name }}</option>
           {% endfor %}
@@ -37,73 +40,87 @@
       </div>
       {% endfor %}
 
-      <button type="submit">Submit Vote</button>
-      <button type="button" onclick="resetForm()">Reset</button>
-    </form>
-  </div>
+    {% else %}
+      <!-- ── Voting: single choice via radio buttons ── -->
+      <div style="display:flex; flex-direction:column; gap:.6rem;">
+        {% for item in items %}
+        <label class="choice-row">
+          <input type="radio" name="item_id" value="{{ item.id }}" required>
+          <span class="choice-label">{{ item.item_name }}</span>
+        </label>
+        {% endfor %}
+      </div>
+    {% endif %}
 
-  <script>
-    document.addEventListener('DOMContentLoaded', function() {
-      const selects = document.querySelectorAll('select[name^="rank_"]');
-      
-      if (selects.length === 0) {
-        console.error('No select elements found');
-        return;
-      }
-      
-      // Store original options from first select
-      const originalOptions = Array.from(selects[0].querySelectorAll('option')).map(opt => ({
-        value: opt.value,
-        text: opt.text
-      }));
+    <div class="btn-row">
+      <button class="btn btn-primary" type="submit">Submit Vote</button>
+      {% if session_type == "ranking" %}
+      <button class="btn btn-ghost" type="button" onclick="resetForm()">Reset</button>
+      {% else %}
+      <button class="btn btn-ghost" type="reset">Clear</button>
+      {% endif %}
+    </div>
 
-      function updateOptions() {
-        const selectedValues = new Set();
-        selects.forEach(sel => {
-          if (sel.value) selectedValues.add(sel.value);
-        });
-        
-        selects.forEach(sel => {
-          const currentValue = sel.value;
-          const selectedOption = sel.querySelector('option[value=""]');
-          
-          // Clear all options
-          sel.innerHTML = '<option value="">Select item</option>';
-          
-          // Re-add only available options
-          originalOptions.forEach(opt => {
-            if (opt.value === '') return; // Skip the "Select item" placeholder
-            if (!selectedValues.has(opt.value) || opt.value === currentValue) {
-              const newOption = document.createElement('option');
-              newOption.value = opt.value;
-              newOption.text = opt.text;
-              sel.appendChild(newOption);
-            }
-          });
-          
-          // Restore current value if it was selected
-          if (currentValue) {
-            sel.value = currentValue;
+  </form>
+</div>
+
+<style>
+  .choice-row {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    padding: .75rem 1rem;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: border-color .15s, background .15s;
+  }
+  .choice-row:hover { border-color: var(--primary); background: #f5f3ff; }
+  .choice-row input[type="radio"] { accent-color: var(--primary); width: 1rem; height: 1rem; flex-shrink: 0; }
+  .choice-row:has(input:checked) { border-color: var(--primary); background: #f5f3ff; }
+  .choice-label { font-size: .95rem; font-weight: 500; }
+</style>
+
+{% if session_type == "ranking" %}
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    const selects = document.querySelectorAll('select[name^="rank_"]');
+    if (selects.length === 0) return;
+
+    const originalOptions = Array.from(selects[0].querySelectorAll('option')).map(opt => ({
+      value: opt.value,
+      text: opt.text,
+    }));
+
+    function updateOptions() {
+      const selectedValues = new Set();
+      selects.forEach(sel => { if (sel.value) selectedValues.add(sel.value); });
+      selects.forEach(sel => {
+        const currentValue = sel.value;
+        sel.innerHTML = '<option value="">— Select item —</option>';
+        originalOptions.forEach(opt => {
+          if (opt.value === '') return;
+          if (!selectedValues.has(opt.value) || opt.value === currentValue) {
+            const el = document.createElement('option');
+            el.value = opt.value;
+            el.text  = opt.text;
+            sel.appendChild(el);
           }
         });
-      }
+        if (currentValue) sel.value = currentValue;
+      });
+    }
 
-      function resetForm() {
-        selects.forEach(sel => sel.value = '');
-        updateOptions();
-      }
-
-      // Make resetForm available globally
-      window.resetForm = resetForm;
-
-      // Initial update
+    function resetForm() {
+      selects.forEach(sel => (sel.value = ''));
       updateOptions();
+    }
 
-      // Add event listeners
-      selects.forEach(sel => sel.addEventListener('change', updateOptions));
-    });
-  </script>
+    window.resetForm = resetForm;
+    updateOptions();
+    selects.forEach(sel => sel.addEventListener('change', updateOptions));
+  });
+</script>
+{% endif %}
 
-  <p><a href="/admin">Admin Panel</a> | <a href="/results">View Results</a></p>
-</body>
-</html>
+{% endblock %}
