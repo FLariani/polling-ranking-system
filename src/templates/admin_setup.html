@@ -3,32 +3,71 @@
 
 {% block content %}
 <h1>Create a Session</h1>
-<p class="subtitle">Configure how voters will participate, then launch the session.</p>
+<p class="subtitle">Add your voting options, choose a session type, and launch.</p>
 
 <form method="post" action="/admin/create">
-  <!-- Session type -->
-  <p style="font-size:.85rem; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); margin-bottom:.75rem;">
-    Session Type
-  </p>
+
+  <!-- ── Voting options ── -->
+  <p class="section-label">Voting Options <span id="item-count-label">({{ existing_items|length }} items)</span></p>
+  <div class="card" style="margin-bottom:1.75rem; padding:1.25rem 1.5rem;">
+    <div id="items-list">
+      {% if existing_items %}
+        {% for item in existing_items %}
+        <div class="item-row">
+          <span class="item-num">{{ loop.index }}</span>
+          <input class="item-input" type="text" name="items" value="{{ item.item_name }}"
+                 maxlength="100" placeholder="Option name" required />
+          <button class="item-remove" type="button" onclick="removeItem(this)" title="Remove">&#215;</button>
+        </div>
+        {% endfor %}
+      {% else %}
+        <div class="item-row">
+          <span class="item-num">1</span>
+          <input class="item-input" type="text" name="items" maxlength="100" placeholder="Option name" required />
+          <button class="item-remove" type="button" onclick="removeItem(this)" title="Remove">&#215;</button>
+        </div>
+        <div class="item-row">
+          <span class="item-num">2</span>
+          <input class="item-input" type="text" name="items" maxlength="100" placeholder="Option name" required />
+          <button class="item-remove" type="button" onclick="removeItem(this)" title="Remove">&#215;</button>
+        </div>
+        <div class="item-row">
+          <span class="item-num">3</span>
+          <input class="item-input" type="text" name="items" maxlength="100" placeholder="Option name" required />
+          <button class="item-remove" type="button" onclick="removeItem(this)" title="Remove">&#215;</button>
+        </div>
+      {% endif %}
+    </div>
+    <button class="btn btn-ghost" type="button" onclick="addItem()"
+            style="margin-top:.75rem; width:100%;" id="add-btn">
+      + Add Option
+    </button>
+    <p id="items-hint" style="margin:.5rem 0 0; font-size:.8rem; color:var(--muted);">
+      Minimum 2, maximum 50 options.
+    </p>
+  </div>
+
+  <!-- ── Session type ── -->
+  <p class="section-label">Session Type</p>
   <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:1.75rem;">
 
     <label class="type-card" id="card-ranking">
       <input type="radio" name="session_type" value="ranking" checked hidden>
       <div class="type-card-check" id="check-ranking">&#10003;</div>
       <strong>Ranking</strong>
-      <p>Voters order all items from best to worst. Results show average rank.</p>
+      <p>Voters order all options from best to worst. Results show average rank.</p>
     </label>
 
     <label class="type-card" id="card-voting">
       <input type="radio" name="session_type" value="voting" hidden>
       <div class="type-card-check" id="check-voting"></div>
       <strong>Voting</strong>
-      <p>Voters pick one item. Results show vote counts.</p>
+      <p>Voters pick one option. Results show vote counts.</p>
     </label>
 
   </div>
 
-  <!-- Anonymous toggle -->
+  <!-- ── Anonymous toggle ── -->
   <div class="card" style="display:flex; align-items:center; justify-content:space-between; padding:1.25rem 1.75rem; margin-bottom:1.75rem;">
     <div>
       <strong>Anonymous Mode</strong>
@@ -42,13 +81,76 @@
     </label>
   </div>
 
+  {% if error %}
+  <p style="color:var(--danger); font-size:.9rem; margin-bottom:1rem;">&#9888; {{ error }}</p>
+  {% endif %}
+
   <button class="btn btn-primary" type="submit" style="width:100%; padding:.75rem;">
     Launch Session
   </button>
 </form>
 
 <style>
-  /* ── Type selection cards ── */
+  .section-label {
+    font-size: .85rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: var(--muted);
+    margin: 0 0 .75rem;
+  }
+
+  /* ── Item rows ── */
+  .item-row {
+    display: flex;
+    align-items: center;
+    gap: .6rem;
+    margin-bottom: .5rem;
+  }
+  .item-num {
+    min-width: 1.5rem;
+    text-align: right;
+    font-size: .8rem;
+    color: var(--muted);
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+  .item-input {
+    flex: 1;
+    padding: .5rem .75rem;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    font-size: .95rem;
+    font-family: inherit;
+    color: var(--text);
+    outline: none;
+    transition: border-color .15s, box-shadow .15s;
+  }
+  .item-input:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(79,70,229,.15);
+  }
+  .item-remove {
+    flex-shrink: 0;
+    width: 1.75rem;
+    height: 1.75rem;
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    font-size: 1.1rem;
+    cursor: pointer;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background .15s, color .15s;
+    padding: 0;
+  }
+  .item-remove:hover { background: #fee2e2; color: var(--danger); }
+  .item-remove:disabled { opacity: 0.25; cursor: default; }
+  .item-remove:disabled:hover { background: transparent; color: var(--muted); }
+
+  /* ── Type cards ── */
   .type-card {
     position: relative;
     display: flex;
@@ -87,7 +189,7 @@
     border-color: var(--primary);
   }
 
-  /* ── Toggle switch ── */
+  /* ── Toggle ── */
   .toggle { display: flex; align-items: center; cursor: pointer; flex-shrink: 0; margin-left: 1.5rem; }
   .toggle input { display: none; }
   .toggle-track {
@@ -114,7 +216,53 @@
 </style>
 
 <script>
-  // Keep the type-card selected style in sync with the radio buttons.
+  const MAX_ITEMS = 50;
+  const MIN_ITEMS = 2;
+
+  function getRows() {
+    return document.querySelectorAll('#items-list .item-row');
+  }
+
+  function renumber() {
+    const rows = getRows();
+    rows.forEach((row, i) => {
+      row.querySelector('.item-num').textContent = i + 1;
+    });
+    // Disable remove buttons when at minimum
+    const tooFew = rows.length <= MIN_ITEMS;
+    rows.forEach(row => {
+      row.querySelector('.item-remove').disabled = tooFew;
+    });
+    // Hide add button at max
+    document.getElementById('add-btn').style.display = rows.length >= MAX_ITEMS ? 'none' : '';
+    // Update count label
+    document.getElementById('item-count-label').textContent = '(' + rows.length + ' item' + (rows.length !== 1 ? 's' : '') + ')';
+  }
+
+  function addItem() {
+    const list = document.getElementById('items-list');
+    const rows = getRows();
+    if (rows.length >= MAX_ITEMS) return;
+
+    const row = document.createElement('div');
+    row.className = 'item-row';
+    row.innerHTML =
+      '<span class="item-num"></span>' +
+      '<input class="item-input" type="text" name="items" maxlength="100" placeholder="Option name" required />' +
+      '<button class="item-remove" type="button" onclick="removeItem(this)" title="Remove">&#215;</button>';
+    list.appendChild(row);
+    renumber();
+    row.querySelector('.item-input').focus();
+  }
+
+  function removeItem(btn) {
+    const rows = getRows();
+    if (rows.length <= MIN_ITEMS) return;
+    btn.closest('.item-row').remove();
+    renumber();
+  }
+
+  // Type card sync
   const cards = document.querySelectorAll('.type-card');
   function syncCards() {
     cards.forEach(card => {
@@ -131,5 +279,6 @@
   }
   cards.forEach(card => card.addEventListener('click', syncCards));
   syncCards();
+  renumber();
 </script>
 {% endblock %}

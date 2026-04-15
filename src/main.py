@@ -161,14 +161,30 @@ def admin():
 
 @app.route("/admin/setup")
 def admin_setup():
-    """Session creation form — pick type and anonymous mode."""
-    return render_template("admin_setup.html")
+    """Session creation form — input voting options, pick type and anonymous mode."""
+    return render_template("admin_setup.html", existing_items=items, error=None)
 
 
 @app.route("/admin/create", methods=["POST"])
 def admin_create():
-    """Create a new session from the setup form and redirect to the dashboard."""
-    global current_session
+    """Parse the setup form, validate items, then create the session."""
+    global current_session, items
+
+    # Collect and clean item names submitted by the admin.
+    raw_names = [v.strip() for v in request.form.getlist("items") if v.strip()]
+
+    if len(raw_names) < 2:
+        return render_template("admin_setup.html", existing_items=items, error="Please enter at least 2 options.")
+    if len(raw_names) > 50:
+        return render_template("admin_setup.html", existing_items=items, error="Maximum 50 options allowed.")
+    for name in raw_names:
+        if len(name) > 100:
+            return render_template("admin_setup.html", existing_items=items,
+                                   error=f"Option name too long (max 100 characters): \"{name[:40]}…\"")
+
+    # Replace the global items list with what the admin entered.
+    items = [Item(id=i + 1, item_name=name) for i, name in enumerate(raw_names)]
+
     session_type = request.form.get("session_type", "ranking")
     anonymous    = request.form.get("anonymous") == "on"
     current_session = storage.create_session(session_type=session_type, anonymous=anonymous)
@@ -251,4 +267,4 @@ def bootstrap() -> argparse.Namespace:
 if __name__ == "__main__":
     atexit.register(cleanup)
     run_args = bootstrap()
-    app.run(host=run_args.host, port=run_args.port, debug=False)
+    app.run(host=run_args.host, port=run_args.port, debug=False, use_reloader=False)

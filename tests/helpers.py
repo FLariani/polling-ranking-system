@@ -30,7 +30,11 @@ def create_test_client(tmp_path: Path) -> Tuple[FlaskClient, Sequence[Item], mai
 
     client = main.app.test_client()
     # Create a default non-anonymous ranking session so tests can vote immediately.
-    client.post("/admin/create", data={"session_type": "ranking"})
+    # The route now requires at least 2 item names submitted as the "items" field.
+    client.post("/admin/create", data={
+        "session_type": "ranking",
+        "items": ["Apple", "Banana", "Cherry"],
+    })
 
     return client, main.items, main.current_session, main.storage
 
